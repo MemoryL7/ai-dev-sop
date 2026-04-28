@@ -1,0 +1,9 @@
+{
+  "name": "ai-dev-sop",
+  "description": "AI自动化开发SOP — 7阶段半自适应开发流程，整合TDD/审查/风险自适应，含Stop Hook自动审查检查",
+  "version": "0.1.0",
+  "author": {
+    "name": "MemoryL7",
+    "email": ""
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "skill_name": "ai-dev-sop",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我要给项目新增一个用户认证模块，用JWT做token验证。请按SOP流程来开发。",
+      "expected_output": "检查依赖 → Phase 0 → Phase 1+2 方案 → 等待确认",
+      "files": [],
+      "covers_phases": ["prerequisite", "phase0", "phase1-2"]
+    },
+    {
+      "id": 2,
+      "prompt": "现在这个API接口有个Bug，POST /api/users 返回500，帮忙按流程修一下",
+      "expected_output": "检查依赖 → Phase 0 需求确认（含代码调查）",
+      "files": [],
+      "covers_phases": ["prerequisite", "phase0"]
+    },
+    {
+      "id": 3,
+      "prompt": "帮我把项目里的数据查询层重构一下，现在代码太乱了，到处都是重复的数据库操作",
+      "expected_output": "检查依赖 → Phase 0 需求确认（含代码调查+风险评估）",
+      "files": [],
+      "covers_phases": ["prerequisite", "phase0"]
+    },
+    {
+      "id": 4,
+      "prompt": "我已经确认了方案。现在按SOP执行 Phase 3，从任务T1开始。T1是：在BatchCollector基类中新增toLong()和toDouble()工具方法，然后从8个重复实现的采集器中删除这些方法。这是一个低风险任务，涉及文件：BatchCollector.java、CompanyPunishCollector.java、CompanySoftwareCollector.java等9个文件。",
+      "expected_output": "执行7步原子循环：①风险评为低风险→②TDD-RED写失败测试→③TDD-GREEN最小实现→④REFACTOR→⑤低风险自审→⑥对齐检查→⑦commit",
+      "files": [],
+      "covers_phases": ["prerequisite", "phase3"],
+      "note": "核心测试 - 验证TDD循环和7步原子循环是否完整执行"
+    },
+    {
+      "id": 5,
+      "prompt": "Phase 3的所有任务已执行完毕（T1-T5全部commit）。现在执行Phase 4集成测试。运行mvn test发现CompanyCollectorTest测试失败，错误是NPE at CompanyBidCollector.java:45。",
+      "expected_output": "触发systematic-debugging：根因分析→定位NPE原因→修复→重新运行测试→通过后继续。如果3次失败则暂停等人工。",
+      "files": [],
+      "covers_phases": ["phase4"],
+      "note": "验证故障排查流程和3次失败暂停规则"
+    },
+    {
+      "id": 6,
+      "prompt": "Phase 4集成测试已全部通过。现在执行Phase 5深度审查和Phase 6交付。本次迭代共修改了9个文件，新增1个工具方法，无高风险变更。",
+      "expected_output": "Phase 5：安全扫描→独立审查→自动修复→审查通过。Phase 6：合并分支→生成交付报告→更新index.md→通知完成",
+      "files": [],
+      "covers_phases": ["phase5", "phase6"],
+      "note": "验证审查和交付流程完整性"
+    }
+  ]
+}

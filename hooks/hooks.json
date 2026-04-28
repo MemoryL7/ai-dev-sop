@@ -1,0 +1,16 @@
+{
+  "description": "ai-dev-sop - Stop hook: 业务逻辑文件变更时检查审查文件是否存在",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/check-review.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

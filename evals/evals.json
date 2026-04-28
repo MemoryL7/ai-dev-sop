@@ -1,0 +1,23 @@
+{
+  "skill_name": "ai-dev-sop",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我要给项目新增一个用户认证模块，用JWT做token验证。请按SOP流程来开发。",
+      "expected_output": "SOP被触发，检查superpowers依赖，进入Phase 0创建.ai-dev/目录和requirements.md，展示变更diff等待用户确认",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "现在这个API接口有个Bug，POST /api/users 返回500，帮忙按流程修一下",
+      "expected_output": "SOP被触发，识别为Bug修复场景，进入Phase 0需求管理，然后Phase 1+2分析Bug原因并输出修复方案",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "帮我把项目里的数据查询层重构一下，现在代码太乱了，到处都是重复的数据库操作",
+      "expected_output": "SOP被触发，识别为重构场景，进入Phase 0记录重构需求，Phase 1+2分析重构范围并输出方案",
+      "files": []
+    }
+  ]
+}
