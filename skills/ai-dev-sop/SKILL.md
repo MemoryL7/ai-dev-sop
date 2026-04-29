@@ -21,14 +21,12 @@ version: 0.2.0
 ├── index.md                # 总索引（一直很短）
 ├── requirements.md         # 需求活文档（含变更历史）
 ├── risk-rules.yaml         # 风险规则（人定义，AI执行）
-├── decision-log.md         # 决策日志（自适应层记录）
+├── decision-log.md         # 决策日志（Phase 3 + Phase 5 写入）
 ├── plans/vN-名称.md        # 单次迭代方案
-├── tasks/vN/Tn-名称.md     # 单个任务明细
 ├── templates/              # 模板文件
 │   └── review-template.md  # 代码审查报告模板（从插件 references/ 复制）
-├── reviews/                # 审查记录
-├── audits/                 # 回归审计
-└── deliveries/             # 交付报告
+├── reviews/                # 审查记录（Phase 5）
+└── deliveries/             # 交付报告（Phase 6）
 ```
 
 **模板来源**：`templates/review-template.md` 的标准版本存放在本插件的 `references/review-template.md`。Phase 0 初始化时复制到项目。
@@ -97,7 +95,8 @@ version: 0.2.0
     - 代码质量：项目规范、错误处理、安全性、测试覆盖
   - 遇到 BUG → 触发 `systematic-debugging` skill（4 阶段根因排查，不猜不蒙）
 
-#### 3c：分级审查（自适应）
+#### 3c：分级审查（自适应）→ 结果写入 decision-log.md
+- 风险评估结果、审查策略选择、TDD 降级理由均记录到 `.ai-dev/decision-log.md`
 - 🟢低风险：子 agent 内置自审（`subagent-driven-development` 已包含）
 - 🟡中风险：独立审查子 agent（`requesting-code-review`，完整管线）
 - 🔴高风险：异质模型审查 + 安全扫描 + 人审确认
@@ -121,6 +120,7 @@ version: 0.2.0
   - Step 6：评估结果（安全/逻辑错误 = FAIL → Step 7）
   - Step 7：自动修复循环（≤2轮，第三方 agent 修复，不自行修）
 - 生成审查报告 → 填写 `.ai-dev/reviews/review-{任务名}.md`（含变更摘要、风险评估、验证方法、认知反思）
+- 审查结果（PASS/FAIL、发现的问题、修复记录）追加到 `.ai-dev/decision-log.md`
 - FAIL → 返回 Phase 3 修复
 
 ### Phase 6：交付
@@ -190,8 +190,8 @@ review_check:
 
 ### 常见脱节点
 1. **审查缺失** — `risk-rules.yaml`定义了🟡/🔴审查策略，但`reviews/`为空
-2. **audits/为空** — 回归审计未执行
-3. **无初始化产出** — Phase 0缺少requirements.md
+2. **无初始化产出** — Phase 0缺少requirements.md
+3. **decision-log 为空** — Phase 3/5 的决策和审查结果未留痕
 
 > 核心洞察：**如果一个步骤总是被跳过，问题可能不在执行者，而在流程设计本身。** — 圆桌会议结论（2026-04-28）
 
