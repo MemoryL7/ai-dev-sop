@@ -33,6 +33,19 @@ version: 0.2.0
 
 **模板来源**：`templates/review-template.md` 的标准版本存放在本插件的 `references/review-template.md`。Phase 0 初始化时复制到项目。
 
+## Skill 路径映射
+
+各 skill 有自身的默认输出路径，SOP 统一重定向到 `.ai-dev/` 下。调用 skill 时通过 context 传递以下映射：
+
+| Skill 默认路径 | SOP 实际路径 | 说明 |
+|---------------|-------------|------|
+| `docs/plans/` | `.ai-dev/plans/` | `writing-plans` 和 `subagent-driven-development` 的 plan 读写 |
+| `reviews/` | `.ai-dev/reviews/` | `requesting-code-review` 的审查报告 |
+| `deliveries/` | `.ai-dev/deliveries/` | SOP Phase 6 交付报告 |
+| `tests/` | 按项目约定（不改） | `test-driven-development` 的测试文件位置 |
+
+**规则：调用任何 skill 时，在 context 中注入 `SOP_ROOT=.ai-dev`，skill 的 `docs/plans/` 等路径一律替换为 `.ai-dev/plans/`。测试文件路径不替换——遵循项目已有约定。**
+
 ## Stop Hook（自动审查检查）
 
 本插件注册了 `Stop` Hook，在 Claude Code 每次准备停止时自动检查：
