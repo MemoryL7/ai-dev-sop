@@ -18,6 +18,11 @@ version: 0.2.0
 ## .ai-dev/ 目录结构
 ```
 .ai-dev/
+├── context/                # 系统上下文（单一事实来源，反映系统当前状态）
+│   ├── overview.md         # 系统全貌：业务对象、数据源、处理流程、输出产物
+│   ├── design.md           # 技术规格：架构、模块、接口设计
+│   ├── data.md             # 数据规格：数据源、表结构、字段映射
+│   └── ops.md              # 运维参考：API接口、部署配置、验证结果
 ├── index.md                # 总索引（一直很短）
 ├── requirements.md         # 需求活文档（含变更历史）
 ├── risk-rules.yaml         # 风险规则（人定义，AI执行）
@@ -30,6 +35,18 @@ version: 0.2.0
 ```
 
 **模板来源**：`templates/review-template.md` 的标准版本存放在本插件的 `references/review-template.md`。Phase 0 初始化时复制到项目。
+
+### context/ 维护规则
+
+- **定位**：context/ 是系统当前状态的"活文档"，始终只反映系统**现在是什么样**
+- **与 requirements.md 的区别**：requirements.md 是需求条目（做过什么、要做什么），context/ 是系统状态快照
+- **更新时机**：每次迭代 Phase 6 交付时，AI **必须**检查并同步更新 context/
+  - 架构/模块变更 → 更新 `design.md`
+  - 数据源/表结构变更 → 更新 `data.md`
+  - API/部署配置变更 → 更新 `ops.md`
+  - 新增/移除业务对象或输出产物 → 更新 `overview.md`
+- **初始化**：项目首次使用 SOP 时，如果 context/ 不存在，AI 应从现有文档提炼创建
+- **不覆盖原则**：context/ 只做增量更新（加新内容/改旧内容），不保留历史版本（历史由 SOP 流程产物和 git 承载）
 
 ## Skill 路径映射
 
@@ -75,9 +92,20 @@ version: 0.2.0
   - 精确到文件路径、完整代码示例、预期输出、验证命令
   - 审查 plan checklist（任务顺序、路径正确、代码完整、DRY/YAGNI/TDD）
 - 需求对齐检查（新增 vs 已实现的冲突分析）
-- **人签字确认 → 进入自动执行（未确认绝不进入Phase 3）**
+- **方案输出后必须硬停止，等待人确认。** 具体规则：
+  1. 输出方案后，以 `[方案待确认]` 结尾，**然后立即停止输出**
+  2. **绝对禁止**在同一轮对话中继续执行任何代码修改、文件创建、终端命令
+  3. 如果人对方案提出修改意见，修改后重新输出并再次以 `[方案待确认]` 结尾
+  4. 只有人明确说"确认"/"开始执行"/"按SOP走"等肯定性指令后，才允许进入 Phase 3
+  5. 人说"部分确认"或只确认某些任务，只执行被确认的部分，未确认部分不碰
 
 ### Phase 3：逐任务执行
+
+> ⚠️ **入口校验**：进入 Phase 3 前，必须确认满足以下条件，否则**拒绝执行并提醒确认**：
+> 1. 当前对话中存在 `[方案待确认]` 标记（说明方案已输出）
+> 2. 人之后说过"确认"/"开始执行"/"按SOP走"等肯定性指令
+> 3. 如果只有部分任务被确认，只执行被确认的任务
+> 4. 如果以上条件不满足，输出"⚠️ 尚未收到方案确认，请先确认方案后再执行"并停止
 
 #### 3a：任务拆分（如 plan 未细化到可执行粒度）
 → 加载 `writing-plans` skill，将每个任务拆分到 2-5 分钟粒度
@@ -124,7 +152,13 @@ version: 0.2.0
 - FAIL → 返回 Phase 3 修复
 
 ### Phase 6：交付
-- 合并分支 → 生成 delivery-report.md → 更新 index.md → 推送通知
+- 合并分支 → 生成 delivery-report.md → 更新 index.md → **同步更新 context/** → 推送通知
+- **context 同步**：检查本次迭代是否涉及以下变更，有则更新对应文件：
+  - 架构/模块变更 → `design.md`
+  - 数据源/表结构变更 → `data.md`
+  - API/部署配置变更 → `ops.md`
+  - 业务对象/输出产物变更 → `overview.md`
+  - 无变更则跳过（不强制更新）
 
 ## 风险规则（risk-rules.yaml）
 ```yaml
@@ -183,10 +217,11 @@ review_check:
 | SOP阶段 | 预期产出 | 检查方法 |
 |---------|---------|---------|
 | Phase 0 | `requirements.md`存在 | `ls .ai-dev/requirements.md` |
+| context/ | 4个文件存在且非空 | `ls .ai-dev/context/` |
 | Phase 1+2 | `plans/vN-*.md`存在 | `ls .ai-dev/plans/` |
 | Phase 3 | git commit有feat/fix前缀 | `git log --oneline -5` |
 | Phase 5 | `reviews/`有审查记录 | `ls .ai-dev/reviews/` |
-| Phase 6 | `deliveries/delivery-report.md` | `ls .ai-dev/deliveries/` |
+| Phase 6 | `deliveries/delivery-report.md` + context/ 已同步 | `ls .ai-dev/deliveries/` |
 
 ### 常见脱节点
 1. **审查缺失** — `risk-rules.yaml`定义了🟡/🔴审查策略，但`reviews/`为空
@@ -195,7 +230,21 @@ review_check:
 
 > 核心洞察：**如果一个步骤总是被跳过，问题可能不在执行者，而在流程设计本身。** — 圆桌会议结论（2026-04-28）
 
+## 演进路线（圆桌 2026-04-29 确认）
+
+```
+v0.2 当前：纯 Skill，6 Phase 线性流程，先跑通
+  ↓ 跑通 2-3 个真实需求，验证脱节点后
+v0.3：融入 scale-engine 优秀理念（参考 hongmaple/scale-engine）
+  - PrematureDone 检测（改了代码必须跑测试验证）
+  - BruteRetry 检测（同一策略失败 3 次强制换策略）
+  - decision-log → 自进化闭环（Defect→Lesson→Rule→Hook）
+  ↓ 验证哪些约束真正有效后
+v0.4：引擎化 — 把已验证的约束做成物理 Hook（npm 包 / Claude Code Plugin Hook）
+```
+
 ## 版本历史
+- v0.2.1 — 清理目录结构：砍掉 tasks/ 和 audits/（从未使用），decision-log 明确写入 Phase 3+5
 - v0.2.0 — 各阶段引用对应 skill（writing-plans / subagent-driven-development / test-driven-development / systematic-debugging / requesting-code-review），SOP 专注调度和自适应策略，不再重复 skill 已有的执行细节
 - v0.1.0 — Claude Code 插件版本，新增 Stop Hook（check-review.sh），`${CLAUDE_PLUGIN_ROOT}` 路径解析
 - v0.0.1 — 初始版本，仅 skill
