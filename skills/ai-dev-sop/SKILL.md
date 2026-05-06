@@ -229,22 +229,3 @@ review_check:
 3. **decision-log 为空** — Phase 3/5 的决策和审查结果未留痕
 
 > 核心洞察：**如果一个步骤总是被跳过，问题可能不在执行者，而在流程设计本身。** — 圆桌会议结论（2026-04-28）
-
-## 演进路线（圆桌 2026-04-29 确认）
-
-```
-v0.2 当前：纯 Skill，6 Phase 线性流程，先跑通
-  ↓ 跑通 2-3 个真实需求，验证脱节点后
-v0.3：融入 scale-engine 优秀理念（参考 hongmaple/scale-engine）
-  - PrematureDone 检测（改了代码必须跑测试验证）
-  - BruteRetry 检测（同一策略失败 3 次强制换策略）
-  - decision-log → 自进化闭环（Defect→Lesson→Rule→Hook）
-  ↓ 验证哪些约束真正有效后
-v0.4：引擎化 — 把已验证的约束做成物理 Hook（npm 包 / Claude Code Plugin Hook）
-```
-
-## 版本历史
-- v0.2.1 — 清理目录结构：砍掉 tasks/ 和 audits/（从未使用），decision-log 明确写入 Phase 3+5
-- v0.2.0 — 各阶段引用对应 skill（writing-plans / subagent-driven-development / test-driven-development / systematic-debugging / requesting-code-review），SOP 专注调度和自适应策略，不再重复 skill 已有的执行细节
-- v0.1.0 — Claude Code 插件版本，新增 Stop Hook（check-review.sh），`${CLAUDE_PLUGIN_ROOT}` 路径解析
-- v0.0.1 — 初始版本，仅 skill
