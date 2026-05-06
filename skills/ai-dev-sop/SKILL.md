@@ -73,9 +73,19 @@ version: 0.2.0
 **Hook 脚本位置**：`${CLAUDE_PLUGIN_ROOT}/hooks/check-review.sh`
 **规则配置位置**：项目 `.ai-dev/risk-rules.yaml` 的 `review_check` 段
 
+## 阶段执行纪律
+
+> 以下规则适用于所有阶段，违反任一条 = SOP 脱节。
+
+1. **阶段标记（强制）**：每个阶段开始时**必须**输出 `## Phase X：阶段名`，结束后输出简要结论。跳过任何阶段必须输出 `[Phase X 跳过：理由]` 并记录到 `decision-log.md`
+2. **Skill 声明（强制）**：每个阶段如果定义了关联 skill，进入时**必须**显式输出 `→ 加载 xxx skill` 并实际加载。禁止跳过 skill 直接手写逻辑
+3. **context 优先（强制）**：Phase 0 调研时，**必须先读 `.ai-dev/context/`** 全部文件建立系统全貌认知，然后再搜索代码。禁止跳过 context 直接 grep
+4. **TDD 无例外**：Phase 3 不管改动大小、不管是否使用 subagent，**必须**先写失败测试再写实现代码。降级 TDD 必须在 `decision-log.md` 记录理由
+
 ## 流程7阶段（固定骨架）
 
 ### Phase 0：需求变更管理
+- **第一步：读 context/** — 读取 `.ai-dev/context/overview.md`（系统全貌）+ `data.md`（数据规格）+ `design.md`（技术规格），建立数据流转和架构认知
 - 新需求进来 → 对比当前 requirements.md
 - 生成变更diff（+新增 ~修改 -删除）
 - 人确认变更 → 更新 requirements.md + 变更历史
@@ -112,6 +122,16 @@ version: 0.2.0
 > 3. 如果只有部分任务被确认，只执行被确认的任务
 > 4. 如果以上条件不满足，输出"⚠️ 尚未收到方案确认，请先确认方案后再执行"并停止
 
+> ⚠️ **TDD 强制执行**：不管改动大小、不管是否使用 subagent，**必须**执行 TDD 流程：
+> 1. **RED**：先写/修改测试，运行并确认 FAIL
+> 2. **GREEN**：写最小实现代码，运行并确认 PASS
+> 3. **REFACTOR**：清理重复/改善命名，测试仍 PASS
+>
+> 降级条件（满足任一可降级为"先实现后补测试"，**必须记录到 decision-log.md**）：
+> - 项目无任何测试框架/测试约定
+> - 改动仅涉及配置文件/SQL/文档，无可测试逻辑
+> - 紧急 hotfix（人明确标注紧急）
+
 #### 3a：任务拆分（如 plan 未细化到可执行粒度）
 → 加载 `writing-plans` skill，将每个任务拆分到 2-5 分钟粒度
 
@@ -135,6 +155,7 @@ version: 0.2.0
 - 🔴高风险：异质模型审查 + 安全扫描 + 人审确认
 
 ### Phase 4：集成测试
+→ 加载 `test-driven-development` skill（集成测试部分）
 - 单元测试已下沉到 Phase 3 每个任务内（`test-driven-development` skill 保证）
 - 集成测试 + 冒烟测试（两轮）
 - **Baseline 回归检测**（引用 `requesting-code-review` Step 3）：
@@ -224,7 +245,8 @@ review_check:
 | Phase 0 | `requirements.md`存在 | `ls .ai-dev/requirements.md` |
 | context/ | 4个文件存在且非空 | `ls .ai-dev/context/` |
 | Phase 1+2 | `plans/vN-*.md`存在 | `ls .ai-dev/plans/` |
-| Phase 3 | git commit有feat/fix前缀 | `git log --oneline -5` |
+| Phase 3 | git commit有feat/fix前缀 + 测试通过 | `git log --oneline -5` |
+| Phase 4 | 输出阶段标记或跳过理由 | 检查对话记录 |
 | Phase 5 | `reviews/`有审查记录 | `ls .ai-dev/reviews/` |
 | Phase 6 | `deliveries/delivery-report.md` + context/ 已同步 | `ls .ai-dev/deliveries/` |
 
@@ -232,5 +254,9 @@ review_check:
 1. **审查缺失** — `risk-rules.yaml`定义了🟡/🔴审查策略，但`reviews/`为空
 2. **无初始化产出** — Phase 0缺少requirements.md
 3. **decision-log 为空** — Phase 3/5 的决策和审查结果未留痕
+4. **阶段静默跳过** — 对话中无 `## Phase X` 标记，说明该阶段被跳过且无理由
+5. **TDD 缺失** — Phase 3 无测试代码，且 decision-log 中无降级理由
+6. **context 未读** — Phase 0 直接 grep 代码，跳过了 `.ai-dev/context/` 全貌认知
+7. **Skill 未加载** — 各阶段未输出 `→ 加载 xxx skill` 声明
 
 > 核心洞察：**如果一个步骤总是被跳过，问题可能不在执行者，而在流程设计本身。** — 圆桌会议结论（2026-04-28）
