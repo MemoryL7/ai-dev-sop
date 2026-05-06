@@ -1,19 +1,33 @@
 ---
 name: ai-dev-sop
 description: >
-  AI自动化开发标准操作流程(SOP)。当用户要求开发新功能、修Bug、重构代码，或者提到"SOP"、"开发流程"、"按流程来"、"按SOP走"时触发此技能。
+  AI自动化开发SOP。当用户要求开发新功能、修Bug、重构代码，或者提到"SOP"、"开发流程"、"按流程来"、"按SOP走"时触发此技能。
   也适用于：用户要求从需求到交付的完整开发流程、要求AI自动执行编码-测试-审查-提交、提到TDD开发、要求分阶段开发、提到风险评估或分级审查的场景。
   即使没有明确说"SOP"，只要是涉及多步骤的系统化开发任务，都应考虑使用此技能。
-version: 0.2.0
+version: 0.3.0
 ---
 
 # AI 自动化开发 SOP
 
+## 定位
+
+**ai-dev-sop 不是执行者，是调度器。**
+
+- TDD 怎么做 → `test-driven-development` skill 管
+- 代码审查怎么做 → `requesting-code-review` skill 管
+- 方案怎么写 → `writing-plans` skill 管
+- 调试怎么做 → `systematic-debugging` skill 管
+- 并行开发怎么做 → `subagent-driven-development` skill 管
+
+**ai-dev-sop 只管三件事：**
+1. 启动时加载项目上下文（context/），确保 AI 理解系统全貌
+2. 方案必须人确认后才执行（人确认门）
+3. 按阶段调度对应 skill，skill 怎么说 AI 就怎么做
+
 ## 核心原则
 - **人**：管需求 + 确认方案（唯一签字点）
 - **AI**：自动执行编码→测试→审查→提交（全流程）
-- **架构**：半自适应 = 固定骨架（7阶段）+ 动态血肉（3自适应层）
-- **采用**：渐进式，Level 1零配置起步
+- **Skill 为主，SOP 为辅**：执行细节交给 skill，SOP 只管调度和确认
 
 ## .ai-dev/ 目录结构
 ```
@@ -26,40 +40,31 @@ version: 0.2.0
 ├── index.md                # 总索引（一直很短）
 ├── requirements.md         # 需求活文档（含变更历史）
 ├── risk-rules.yaml         # 风险规则（人定义，AI执行）
-├── decision-log.md         # 决策日志（Phase 3 + Phase 5 写入）
+├── decision-log.md         # 决策日志（各阶段写入）
 ├── plans/vN-名称.md        # 单次迭代方案
 ├── templates/              # 模板文件
 │   └── review-template.md  # 代码审查报告模板（从插件 references/ 复制）
-├── reviews/                # 审查记录（Phase 5）
-└── deliveries/             # 交付报告（Phase 6）
+├── reviews/                # 审查记录
+└── deliveries/             # 交付报告
 ```
-
-**模板来源**：`templates/review-template.md` 的标准版本存放在本插件的 `references/review-template.md`。Phase 0 初始化时复制到项目。
 
 ### context/ 维护规则
 
 - **定位**：context/ 是系统当前状态的"活文档"，始终只反映系统**现在是什么样**
 - **与 requirements.md 的区别**：requirements.md 是需求条目（做过什么、要做什么），context/ 是系统状态快照
-- **更新时机**：每次迭代 Phase 6 交付时，AI **必须**检查并同步更新 context/
-  - 架构/模块变更 → 更新 `design.md`
-  - 数据源/表结构变更 → 更新 `data.md`
-  - API/部署配置变更 → 更新 `ops.md`
-  - 新增/移除业务对象或输出产物 → 更新 `overview.md`
+- **更新时机**：每次迭代交付后，AI 检查并同步更新 context/
 - **初始化**：项目首次使用 SOP 时，如果 context/ 不存在，AI 应从现有文档提炼创建
-- **不覆盖原则**：context/ 只做增量更新（加新内容/改旧内容），不保留历史版本（历史由 SOP 流程产物和 git 承载）
 
 ## Skill 路径映射
 
-各 skill 有自身的默认输出路径，SOP 统一重定向到 `.ai-dev/` 下。调用 skill 时通过 context 传递以下映射：
+调用 skill 时，在 context 中注入 `SOP_ROOT=.ai-dev`，以下路径替换生效：
 
-| Skill 默认路径 | SOP 实际路径 | 说明 |
-|---------------|-------------|------|
-| `docs/plans/` | `.ai-dev/plans/` | `writing-plans` 和 `subagent-driven-development` 的 plan 读写 |
-| `reviews/` | `.ai-dev/reviews/` | `requesting-code-review` 的审查报告 |
-| `deliveries/` | `.ai-dev/deliveries/` | SOP Phase 6 交付报告 |
-| `tests/` | 按项目约定（不改） | `test-driven-development` 的测试文件位置 |
-
-**规则：调用任何 skill 时，在 context 中注入 `SOP_ROOT=.ai-dev`，skill 的 `docs/plans/` 等路径一律替换为 `.ai-dev/plans/`。测试文件路径不替换——遵循项目已有约定。**
+| Skill 默认路径 | SOP 实际路径 |
+|---------------|-------------|
+| `docs/plans/` | `.ai-dev/plans/` |
+| `reviews/` | `.ai-dev/reviews/` |
+| `deliveries/` | `.ai-dev/deliveries/` |
+| `tests/` | 按项目约定（不改） |
 
 ## Stop Hook（自动审查检查）
 
@@ -71,120 +76,76 @@ version: 0.2.0
 4. 无 `.ai-dev/` 目录或无 `review_check` 配置时优雅跳过（零侵入）
 
 **Hook 脚本位置**：`${CLAUDE_PLUGIN_ROOT}/hooks/check-review.sh`
-**规则配置位置**：项目 `.ai-dev/risk-rules.yaml` 的 `review_check` 段
 
-## 阶段执行纪律
+---
 
-> 以下规则适用于所有阶段，违反任一条 = SOP 脱节。
+## 执行流程
 
-1. **阶段标记（强制）**：每个阶段开始时**必须**输出 `## Phase X：阶段名`，结束后输出简要结论。跳过任何阶段必须输出 `[Phase X 跳过：理由]` 并记录到 `decision-log.md`
-2. **Skill 声明（强制）**：每个阶段如果定义了关联 skill，进入时**必须**显式输出 `→ 加载 xxx skill` 并实际加载。禁止跳过 skill 直接手写逻辑
-3. **context 优先（强制）**：Phase 0 调研时，**必须先读 `.ai-dev/context/`** 全部文件建立系统全貌认知，然后再搜索代码。禁止跳过 context 直接 grep
-4. **TDD 无例外**：Phase 3 不管改动大小、不管是否使用 subagent，**必须**先写失败测试再写实现代码。降级 TDD 必须在 `decision-log.md` 记录理由
+### 第一步：加载上下文（强制）
 
-## 流程7阶段（固定骨架）
+**必须先读 `.ai-dev/context/` 全部文件**，建立系统全貌认知后再做任何事。
 
-### Phase 0：需求变更管理
-- **第一步：读 context/** — 读取 `.ai-dev/context/overview.md`（系统全貌）+ `data.md`（数据规格）+ `design.md`（技术规格），建立数据流转和架构认知
+按以下顺序读取：
+1. `overview.md` — 业务对象、数据流转、输出产物
+2. `data.md` — 数据源、表结构、字段映射
+3. `design.md` — 架构、模块、接口设计
+4. `ops.md` — API接口、部署配置（按需）
+
+如果 context/ 不存在，先从项目现有文档提炼创建。
+
+### 第二步：需求变更管理
+
 - 新需求进来 → 对比当前 requirements.md
 - 生成变更diff（+新增 ~修改 -删除）
 - 人确认变更 → 更新 requirements.md + 变更历史
-- **初始化 review_check**：扫描项目结构（语言/框架/业务目录），在 `risk-rules.yaml` 中生成 `review_check` 配置，人确认后写入
-  - 示例（Java项目）：`extensions: [".java"]`，`patterns: ["src/main/java/.*/service/"]`
-  - 示例（Next.js项目）：`extensions: [".ts", ".tsx"]`，`patterns: ["src/app/api/"]`
-  - 若 `risk-rules.yaml` 无 `review_check` 段，Stop Hook 优雅跳过（零侵入）
-- **复制审查模板**：`cp ${CLAUDE_PLUGIN_ROOT}/references/review-template.md .ai-dev/templates/review-template.md`
+- 项目首次使用时，初始化 `risk-rules.yaml` 的 `review_check` 配置
+- 复制审查模板：`cp ${CLAUDE_PLUGIN_ROOT}/references/review-template.md .ai-dev/templates/review-template.md`
 
-### Phase 1+2：方案确认
-- 加载 `writing-plans` skill，按其流程执行：
-  - 读取 requirements.md + 探索当前代码库
-  - 任务拆分到 2-5 分钟粒度（每个任务 = 一个可独立验证的行为）
-  - 精确到文件路径、完整代码示例、预期输出、验证命令
-  - 审查 plan checklist（任务顺序、路径正确、代码完整、DRY/YAGNI/TDD）
-- 需求对齐检查（新增 vs 已实现的冲突分析）
-- **多方案对比（强制）**：方案设计必须至少列出 2 个可行路径，按以下维度对比后推荐最优方案：
-  - 改动范围（涉及哪些文件/模块）
-  - 侵入性（是否改动核心链路、是否影响其他功能）
-  - 数据可靠性（数据是否完整、是否存在时序依赖）
-  - **推荐理由**：明确说明为什么推荐这个方案，而不是列出来让人自己选
-- **方案输出后必须硬停止，等待人确认。** 具体规则：
-  1. 输出方案后，以 `[方案待确认]` 结尾，**然后立即停止输出**
-  2. **绝对禁止**在同一轮对话中继续执行任何代码修改、文件创建、终端命令
-  3. 如果人对方案提出修改意见，修改后重新输出并再次以 `[方案待确认]` 结尾
-  4. 只有人明确说"确认"/"开始执行"/"按SOP走"等肯定性指令后，才允许进入 Phase 3
-  5. 人说"部分确认"或只确认某些任务，只执行被确认的部分，未确认部分不碰
+### 第三步：方案设计（人确认门）
 
-### Phase 3：逐任务执行
+→ 加载 `writing-plans` skill，按其流程执行方案设计。
 
-> ⚠️ **入口校验**：进入 Phase 3 前，必须确认满足以下条件，否则**拒绝执行并提醒确认**：
-> 1. 当前对话中存在 `[方案待确认]` 标记（说明方案已输出）
-> 2. 人之后说过"确认"/"开始执行"/"按SOP走"等肯定性指令
-> 3. 如果只有部分任务被确认，只执行被确认的任务
-> 4. 如果以上条件不满足，输出"⚠️ 尚未收到方案确认，请先确认方案后再执行"并停止
+**多方案对比（强制）**：方案设计必须至少列出 2 个可行路径，按以下维度对比后推荐最优方案：
+- 改动范围（涉及哪些文件/模块）
+- 侵入性（是否改动核心链路、是否影响其他功能）
+- 数据可靠性（数据是否完整、是否存在时序依赖）
+- **已有数据可用性**（context/ 或 DetailStore 或其他内存数据中是否已有）
+- **推荐理由**：明确说明为什么推荐这个方案
 
-> ⚠️ **TDD 强制执行**：不管改动大小、不管是否使用 subagent，**必须**执行 TDD 流程：
-> 1. **RED**：先写/修改测试，运行并确认 FAIL
-> 2. **GREEN**：写最小实现代码，运行并确认 PASS
-> 3. **REFACTOR**：清理重复/改善命名，测试仍 PASS
->
-> 降级条件（满足任一可降级为"先实现后补测试"，**必须记录到 decision-log.md**）：
-> - 项目无任何测试框架/测试约定
-> - 改动仅涉及配置文件/SQL/文档，无可测试逻辑
-> - 紧急 hotfix（人明确标注紧急）
+**人确认门（硬停止）**：
+1. 输出方案后，以 `[方案待确认]` 结尾，**立即停止输出**
+2. **绝对禁止**在同一轮对话中执行任何代码修改
+3. 人确认后才能进入第四步；人说"部分确认"则只执行被确认的部分
 
-#### 3a：任务拆分（如 plan 未细化到可执行粒度）
-→ 加载 `writing-plans` skill，将每个任务拆分到 2-5 分钟粒度
+### 第四步：编码实现
 
-#### 3b：逐任务执行（subagent 驱动）
-→ 加载 `subagent-driven-development` skill，按其流程执行：
-  - 读取 plan，提取所有任务
-  - **每个任务 dispatch 独立子 agent**，子 agent 上下文包含完整任务描述
-  - 子 agent 内部自动执行 TDD（加载 `test-driven-development` skill）：
-    - RED：检测项目测试约定，按约定创建测试类/文件，编写失败测试，运行并确认 FAIL
-    - GREEN：最小代码通过测试，运行并确认 PASS
-    - REFACTOR：清理重复/改善命名，测试仍 PASS；无明显必要可跳过并记录理由
-  - 子 agent 内部自动执行两阶段审查（加载 `requesting-code-review` skill）：
-    - 规格合规：实现是否完全匹配 plan 要求（不超做不少做）
-    - 代码质量：项目规范、错误处理、安全性、测试覆盖
-  - 遇到 BUG → 触发 `systematic-debugging` skill（4 阶段根因排查，不猜不蒙）
+→ 加载 `test-driven-development` skill，按 TDD 流程执行（RED → GREEN → REFACTOR）。
 
-#### 3c：分级审查（自适应）→ 结果写入 decision-log.md
-- 风险评估结果、审查策略选择、TDD 降级理由均记录到 `.ai-dev/decision-log.md`
-- 🟢低风险：子 agent 内置自审（`subagent-driven-development` 已包含）
-- 🟡中风险：独立审查子 agent（`requesting-code-review`，完整管线）
-- 🔴高风险：异质模型审查 + 安全扫描 + 人审确认
+- 小任务（单文件/单方法）直接执行
+- 大任务（多文件/多模块）→ 加载 `subagent-driven-development` skill，dispatch 子 agent 并行执行
+- 遇到 BUG → 加载 `systematic-debugging` skill（4 阶段根因排查）
+- TDD 降级条件（必须记录到 `decision-log.md`）：项目无测试框架 / 仅配置变更 / 紧急 hotfix
 
-### Phase 4：集成测试
-→ 加载 `test-driven-development` skill（集成测试部分）
-- 单元测试已下沉到 Phase 3 每个任务内（`test-driven-development` skill 保证）
-- 集成测试 + 冒烟测试（两轮）
-- **Baseline 回归检测**（引用 `requesting-code-review` Step 3）：
-  - 记录变更前的测试失败数作为 baseline
-  - 变更后只判定新增失败为回归，已有失败不计入
-- FAIL → 触发 `systematic-debugging` skill → 修复 → 重试(≤3次)
-- 3+失败 → **暂停等人工**（固定规则，永远执行）
+### 第五步：代码审查
 
-### Phase 5：深度审查
-→ 加载 `requesting-code-review` skill，按其完整管线执行：
-  - Step 1：获取 git diff（变更内容）
-  - Step 2：静态安全扫描（硬编码密钥、注入、反序列化等，固定：永远不跳）
-  - Step 3：Baseline 测试 + Lint（对比变更前后，只判新增失败）
-  - Step 4：自审 checklist（密钥/输入验证/SQL注入/调试代码/测试覆盖）
-  - Step 5：**独立审查子 agent**（与实现者零共享上下文，fail-closed 判定）
-  - Step 6：评估结果（安全/逻辑错误 = FAIL → Step 7）
-  - Step 7：自动修复循环（≤2轮，第三方 agent 修复，不自行修）
-- 生成审查报告 → 填写 `.ai-dev/reviews/review-{任务名}.md`（含变更摘要、风险评估、验证方法、认知反思）
-- 审查结果（PASS/FAIL、发现的问题、修复记录）追加到 `.ai-dev/decision-log.md`
-- FAIL → 返回 Phase 3 修复
+→ 加载 `requesting-code-review` skill，按其完整管线执行。
 
-### Phase 6：交付
-- 合并分支 → 生成 delivery-report.md → 更新 index.md → **同步更新 context/** → 推送通知
-- **context 同步**：检查本次迭代是否涉及以下变更，有则更新对应文件：
-  - 架构/模块变更 → `design.md`
-  - 数据源/表结构变更 → `data.md`
-  - API/部署配置变更 → `ops.md`
-  - 业务对象/输出产物变更 → `overview.md`
-  - 无变更则跳过（不强制更新）
+- 生成审查报告 → 填写 `.ai-dev/reviews/review-{任务名}.md`
+- 审查结果追加到 `.ai-dev/decision-log.md`
+- FAIL → 返回第四步修复
+
+### 第六步：集成验证
+
+- 编译 + 冒烟测试
+- FAIL → `systematic-debugging` skill → 修复 → 重试(≤3次)
+- 3+失败 → **暂停等人工**
+
+### 第七步：交付
+
+- git commit → 生成 delivery-report.md → 更新 index.md → **同步更新 context/** → 推送通知
+- context 同步：架构变更→design.md / 数据变更→data.md / API变更→ops.md / 业务变更→overview.md
+
+---
 
 ## 风险规则（risk-rules.yaml）
 ```yaml
@@ -208,55 +169,22 @@ review_strategy:
   medium: "独立子agent审查 + 安全扫描"
   low: "AI自审 + lint + 测试通过即通过"
 
-# 审查检查配置（Stop Hook 使用）
-# AI 在 Phase 0 初始化时根据项目结构自动生成
 review_check:
-  extensions: [".java"]          # 监控的文件扩展名
-  patterns:                      # 命中这些路径的修改需要审查
+  extensions: [".java"]
+  patterns:
     - "src/main/java/.*/writer/"
     - "src/main/java/.*/service/"
-  task_name_source: "requirements.md"  # 从此文件提取任务编号
+  task_name_source: "requirements.md"
 ```
-
-## 决策日志格式
-```markdown
-| 时间 | 任务 | 决策类型 | 决策 | 理由（规则命中） | 结果 |
-|------|------|---------|------|-----------------|------|
-| 10:01 | T3 | 风险评估 | 🟡 | 路径匹配 */api/** | — |
-| 10:15 | T3 | 审查策略 | 标准 | 风险=🟡 | PASS |
-```
-
-## 需求三层保障
-1. **变更diff**（每次新需求）→ 对比requirements.md，生成+~/-变更
-2. **对齐检查**（每次方案确认）→ 分析新变更与已有功能的冲突
-3. **回归审计**（每3-5次迭代）→ 覆盖度/一致性/技术债全面检查
-
-## 采用路径
-- **Level 1**（今天就能用）：固定7阶段 + 内置默认风险规则 + 简版决策日志
-- **Level 2**（稳定后）：自定义 risk-rules.yaml + 完整决策日志 + Phase 0变更diff
-- **Level 3**（成熟后）：异质审查 + 自适应调节 + 需求回归审计
 
 ## SOP合规自查
 
-完成一次开发任务后，可自查SOP是否被正确执行。**不要问用户**——主动扫描`.ai-dev/`目录。
-
-| SOP阶段 | 预期产出 | 检查方法 |
-|---------|---------|---------|
-| Phase 0 | `requirements.md`存在 | `ls .ai-dev/requirements.md` |
-| context/ | 4个文件存在且非空 | `ls .ai-dev/context/` |
-| Phase 1+2 | `plans/vN-*.md`存在 | `ls .ai-dev/plans/` |
-| Phase 3 | git commit有feat/fix前缀 + 测试通过 | `git log --oneline -5` |
-| Phase 4 | 输出阶段标记或跳过理由 | 检查对话记录 |
-| Phase 5 | `reviews/`有审查记录 | `ls .ai-dev/reviews/` |
-| Phase 6 | `deliveries/delivery-report.md` + context/ 已同步 | `ls .ai-dev/deliveries/` |
-
-### 常见脱节点
-1. **审查缺失** — `risk-rules.yaml`定义了🟡/🔴审查策略，但`reviews/`为空
-2. **无初始化产出** — Phase 0缺少requirements.md
-3. **decision-log 为空** — Phase 3/5 的决策和审查结果未留痕
-4. **阶段静默跳过** — 对话中无 `## Phase X` 标记，说明该阶段被跳过且无理由
-5. **TDD 缺失** — Phase 3 无测试代码，且 decision-log 中无降级理由
-6. **context 未读** — Phase 0 直接 grep 代码，跳过了 `.ai-dev/context/` 全貌认知
-7. **Skill 未加载** — 各阶段未输出 `→ 加载 xxx skill` 声明
-
-> 核心洞察：**如果一个步骤总是被跳过，问题可能不在执行者，而在流程设计本身。** — 圆桌会议结论（2026-04-28）
+| 检查项 | 预期 | 方法 |
+|--------|------|------|
+| context/ 已读 | 启动时读了 overview.md + data.md | 检查对话记录 |
+| requirements.md | 需求有记录 | `ls .ai-dev/requirements.md` |
+| 人确认门 | 方案输出后有 `[方案待确认]` + 人确认后才执行 | 检查对话记录 |
+| Skill 已加载 | 各步骤有 `→ 加载 xxx skill` 声明 | 检查对话记录 |
+| TDD 已执行 | 测试先于实现 | 检查对话记录 / `decision-log.md` 降级理由 |
+| 审查报告 | `reviews/` 有记录 | `ls .ai-dev/reviews/` |
+| context 已同步 | 交付后 context/ 已更新 | 对比 git diff |
