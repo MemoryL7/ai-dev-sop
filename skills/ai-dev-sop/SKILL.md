@@ -19,12 +19,15 @@ version: 0.2.0
 ```
 .ai-dev/
 ├── context/                # 系统上下文（单一事实来源，反映系统当前状态）
+│   ├── product.md          # 产品需求规格：功能全景、业务规则、输入输出、已知限制
 │   ├── overview.md         # 系统全貌：业务对象、数据源、处理流程、输出产物
 │   ├── design.md           # 技术规格：架构、模块、接口设计
 │   ├── data.md             # 数据规格：数据源、表结构、字段映射
 │   └── ops.md              # 运维参考：API接口、部署配置、验证结果
-├── index.md                # 总索引（一直很短）
-├── requirements.md         # 需求活文档（含变更历史）
+├── index.md                # 总索引（整个 .ai-dev 目录的入口）
+├── requirements/           # 需求追踪（每个需求一个独立文件）
+│   ├── README.md           # 需求索引：活跃需求 + 已归档
+│   └── template.md         # 新需求模板
 ├── risk-rules.yaml         # 风险规则（人定义，AI执行）
 ├── decision-log.md         # 决策日志（Phase 3 + Phase 5 写入）
 ├── plans/vN-名称.md        # 单次迭代方案
@@ -39,8 +42,9 @@ version: 0.2.0
 ### context/ 维护规则
 
 - **定位**：context/ 是系统当前状态的"活文档"，始终只反映系统**现在是什么样**
-- **与 requirements.md 的区别**：requirements.md 是需求条目（做过什么、要做什么），context/ 是系统状态快照
+- **与 requirements/ 的区别**：requirements/ 是需求条目（做过什么、要做什么），context/ 是系统状态快照
 - **更新时机**：每次迭代 Phase 6 交付时，AI **必须**检查并同步更新 context/
+  - 业务规则/功能变更 → 更新 `product.md`
   - 架构/模块变更 → 更新 `design.md`
   - 数据源/表结构变更 → 更新 `data.md`
   - API/部署配置变更 → 更新 `ops.md`
@@ -85,10 +89,9 @@ version: 0.2.0
 ## 流程7阶段（固定骨架）
 
 ### Phase 0：需求变更管理
-- **第一步：读 context/** — 读取 `.ai-dev/context/overview.md`（系统全貌）+ `data.md`（数据规格）+ `design.md`（技术规格），建立数据流转和架构认知
-- 新需求进来 → 对比当前 requirements.md
-- 生成变更diff（+新增 ~修改 -删除）
-- 人确认变更 → 更新 requirements.md + 变更历史
+- **第一步：读 context/** — 读取 `.ai-dev/context/product.md`（产品需求）+ `overview.md`（系统全貌）+ `data.md`（数据规格）+ `design.md`（技术规格），建立系统认知
+- 新需求进来 → 对比 requirements/README.md
+- 生成变更diff（+新增 ~修改 -删除）→ 创建 `requirements/R{n}-xxx.md`（复制 template.md 填写）→ 更新 requirements/README.md 活跃表
 - **初始化 review_check**：扫描项目结构（语言/框架/业务目录），在 `risk-rules.yaml` 中生成 `review_check` 配置，人确认后写入
   - 示例（Java项目）：`extensions: [".java"]`，`patterns: ["src/main/java/.*/service/"]`
   - 示例（Next.js项目）：`extensions: [".ts", ".tsx"]`，`patterns: ["src/app/api/"]`
@@ -97,7 +100,7 @@ version: 0.2.0
 
 ### Phase 1+2：方案确认
 - 加载 `writing-plans` skill，按其流程执行：
-  - 读取 requirements.md + 探索当前代码库
+  - 读取 requirements/README.md + 探索当前代码库
   - 任务拆分到 2-5 分钟粒度（每个任务 = 一个可独立验证的行为）
   - 精确到文件路径、完整代码示例、预期输出、验证命令
   - 审查 plan checklist（任务顺序、路径正确、代码完整、DRY/YAGNI/TDD）
@@ -184,6 +187,7 @@ version: 0.2.0
   - 数据源/表结构变更 → `data.md`
   - API/部署配置变更 → `ops.md`
   - 业务对象/输出产物变更 → `overview.md`
+  - 业务规则/功能状态变更 → `product.md`
   - 无变更则跳过（不强制更新）
 
 ## 风险规则（risk-rules.yaml）
@@ -215,7 +219,7 @@ review_check:
   patterns:                      # 命中这些路径的修改需要审查
     - "src/main/java/.*/writer/"
     - "src/main/java/.*/service/"
-  task_name_source: "requirements.md"  # 从此文件提取任务编号
+  task_name_source: "requirements/README.md"  # 从此文件提取任务编号
 ```
 
 ## 决策日志格式
@@ -227,7 +231,7 @@ review_check:
 ```
 
 ## 需求三层保障
-1. **变更diff**（每次新需求）→ 对比requirements.md，生成+~/-变更
+1. **变更diff**（每次新需求）→ 对比 requirements/README.md，生成+~/-变更
 2. **对齐检查**（每次方案确认）→ 分析新变更与已有功能的冲突
 3. **回归审计**（每3-5次迭代）→ 覆盖度/一致性/技术债全面检查
 
@@ -242,8 +246,8 @@ review_check:
 
 | SOP阶段 | 预期产出 | 检查方法 |
 |---------|---------|---------|
-| Phase 0 | `requirements.md`存在 | `ls .ai-dev/requirements.md` |
-| context/ | 4个文件存在且非空 | `ls .ai-dev/context/` |
+| Phase 0 | `requirements/R{n}-*.md`存在 | `ls .ai-dev/requirements/` |
+| context/ | 5个文件存在且非空 | `ls .ai-dev/context/` |
 | Phase 1+2 | `plans/vN-*.md`存在 | `ls .ai-dev/plans/` |
 | Phase 3 | git commit有feat/fix前缀 + 测试通过 | `git log --oneline -5` |
 | Phase 4 | 输出阶段标记或跳过理由 | 检查对话记录 |
@@ -252,7 +256,7 @@ review_check:
 
 ### 常见脱节点
 1. **审查缺失** — `risk-rules.yaml`定义了🟡/🔴审查策略，但`reviews/`为空
-2. **无初始化产出** — Phase 0缺少requirements.md
+2. **无初始化产出** — Phase 0 缺少 requirements/R{n}-*.md
 3. **decision-log 为空** — Phase 3/5 的决策和审查结果未留痕
 4. **阶段静默跳过** — 对话中无 `## Phase X` 标记，说明该阶段被跳过且无理由
 5. **TDD 缺失** — Phase 3 无测试代码，且 decision-log 中无降级理由
