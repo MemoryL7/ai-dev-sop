@@ -33,12 +33,16 @@ version: 0.3.0
 ```
 .ai-dev/
 ├── context/                # 系统上下文（单一事实来源，反映系统当前状态）
+│   ├── product.md          # 产品需求规格（最先读这个）
 │   ├── overview.md         # 系统全貌：业务对象、数据源、处理流程、输出产物
 │   ├── design.md           # 技术规格：架构、模块、接口设计
 │   ├── data.md             # 数据规格：数据源、表结构、字段映射
 │   └── ops.md              # 运维参考：API接口、部署配置、验证结果
-├── index.md                # 总索引（一直很短）
-├── requirements.md         # 需求活文档（含变更历史）
+├── requirements/           # 需求目录（一需求一文件，README.md 做索引）
+│   ├── README.md           # 活跃需求 + 归档需求索引
+│   ├── template.md         # 新需求模板
+│   └── R{N}-{简名}.md      # 各需求文件
+├── index.md                # 总索引（入口导航，一直很短）
 ├── risk-rules.yaml         # 风险规则（人定义，AI执行）
 ├── decision-log.md         # 决策日志（各阶段写入）
 ├── plans/vN-名称.md        # 单次迭代方案
@@ -51,7 +55,7 @@ version: 0.3.0
 ### context/ 维护规则
 
 - **定位**：context/ 是系统当前状态的"活文档"，始终只反映系统**现在是什么样**
-- **与 requirements.md 的区别**：requirements.md 是需求条目（做过什么、要做什么），context/ 是系统状态快照
+- **与 requirements/ 的区别**：requirements/ 是需求条目（做过什么、要做什么），context/ 是系统状态快照
 - **更新时机**：每次迭代交付后，AI 检查并同步更新 context/
 - **初始化**：项目首次使用 SOP 时，如果 context/ 不存在，AI 应从现有文档提炼创建
 
@@ -86,18 +90,19 @@ version: 0.3.0
 **必须先读 `.ai-dev/context/` 全部文件**，建立系统全貌认知后再做任何事。
 
 按以下顺序读取：
-1. `overview.md` — 业务对象、数据流转、输出产物
-2. `data.md` — 数据源、表结构、字段映射
-3. `design.md` — 架构、模块、接口设计
-4. `ops.md` — API接口、部署配置（按需）
+1. `product.md` — 产品需求规格（系统应该做什么，功能全景、业务规则）
+2. `overview.md` — 业务对象、数据流转、输出产物（技术面）
+3. `data.md` — 数据源、表结构、字段映射
+4. `design.md` — 架构、模块、接口设计
+5. `ops.md` — API接口、部署配置（按需）
 
 如果 context/ 不存在，先从项目现有文档提炼创建。
 
 ### 第二步：需求变更管理
 
-- 新需求进来 → 对比当前 requirements.md
+- 新需求进来 → 在 `requirements/` 下创建新文件（按 template.md 格式），更新 README.md 索引
 - 生成变更diff（+新增 ~修改 -删除）
-- 人确认变更 → 更新 requirements.md + 变更历史
+- 人确认变更 → 更新对应需求文件 + README.md 索引
 - 项目首次使用时，初始化 `risk-rules.yaml` 的 `review_check` 配置
 - 复制审查模板：`cp ${CLAUDE_PLUGIN_ROOT}/references/review-template.md .ai-dev/templates/review-template.md`
 
@@ -143,7 +148,7 @@ version: 0.3.0
 ### 第七步：交付
 
 - git commit → 生成 delivery-report.md → 更新 index.md → **同步更新 context/** → 推送通知
-- context 同步：架构变更→design.md / 数据变更→data.md / API变更→ops.md / 业务变更→overview.md
+- context 同步：架构变更→design.md / 数据变更→data.md / API变更→ops.md / 业务变更→overview.md / 功能变更→product.md
 
 ---
 
@@ -174,17 +179,17 @@ review_check:
   patterns:
     - "src/main/java/.*/writer/"
     - "src/main/java/.*/service/"
-  task_name_source: "requirements.md"
+    task_name_source: "requirements/README.md"
 ```
 
 ## SOP合规自查
 
 | 检查项 | 预期 | 方法 |
 |--------|------|------|
-| context/ 已读 | 启动时读了 overview.md + data.md | 检查对话记录 |
-| requirements.md | 需求有记录 | `ls .ai-dev/requirements.md` |
+| context/ 已读 | 启动时读了 product.md + overview.md + data.md | 检查对话记录 |
+| requirements/ | 需求有独立文件 + README.md 索引已更新 | `ls .ai-dev/requirements/` |
 | 人确认门 | 方案输出后有 `[方案待确认]` + 人确认后才执行 | 检查对话记录 |
 | Skill 已加载 | 各步骤有 `→ 加载 xxx skill` 声明 | 检查对话记录 |
 | TDD 已执行 | 测试先于实现 | 检查对话记录 / `decision-log.md` 降级理由 |
 | 审查报告 | `reviews/` 有记录 | `ls .ai-dev/reviews/` |
-| context 已同步 | 交付后 context/ 已更新 | 对比 git diff |
+| context 已同步 | 交付后 context/ 已更新（含 product.md） | 对比 git diff |
